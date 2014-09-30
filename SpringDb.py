@@ -19,7 +19,8 @@ class SpringDb:
 	"""Interfaces with cloud SPRING-DB"""
    	empCount = 0
    	connection = []
-   	CONFIGFILE = "springDbConfig.txt"
+   	# change with path to database config file springDbConfig.txt
+   	CONFIGFILE = "/Users/xavierj/Joao/lab_results/Jinyuan/comparative_genomics/database/springDbConfig.txt"
 
    	def __init__(self):
 		"""Contructor"""
@@ -55,11 +56,14 @@ class SpringDb:
 		sequenceArray = []
 		for row in cursor:
 			c = self.getFirstRowOfResultsFromDbQuery("select genome_id, seq from orf where locus_name = '" + row[0] + "'")
-			gid = c[0]
-			seq = Seq(c[1])
-			genome = self.getFirstResultFromDbQuery("select strain_name from genome where genome_id = '" + str(gid) + "'")
-			# print everything except for last element, which is stop codon
-			sequenceArray.append(SeqRecord(seq.translate()[0:-1], id=genome, description=""))
+			try:
+				gid = c[0]
+				seq = Seq(c[1])
+				genome = self.getFirstResultFromDbQuery("select strain_name from genome where genome_id = '" + str(gid) + "'")
+				# print everything except for last element, which is stop codon
+				sequenceArray.append(SeqRecord(seq.translate()[0:-1], id=genome, description=""))
+			except TypeError:
+				print "The locus name " + row[0] + " did not return any reslts"
  	
  		#SeqIO.write(sequenceArray, gene + ".faa", "fasta")
 		return sequenceArray
@@ -126,6 +130,34 @@ class SpringDb:
 		coreGenomeOrfs = uOrfs[nGenomesWithOrfI == nGenomes]
 		return coreGenomeOrfs
 
+	## PAIRWISE COMPARISONS ##
+	def getMatrixOfOrfsInCommonAndGenomicCoordinates(self, strain1, strain2):
+
+		# get orfs in first strain
+		query = "select orth_orf_id from orf where genome_id=" + str(strain1)
+		a = db.getAllResultsFromDbQuery(query)
+		orfs1 = np.array(a)
+
+		# get orfs in second strain
+		query = "select orth_orf_id from orf where genome_id=" + str(strain2)
+		a = db.getAllResultsFromDbQuery(query)
+		orfs2 = np.array(a)
+
+		# find orfs in common
+		orfs = np.intersect1d(orfs1, orfs2)
+		orfs = filter(lambda x: x != None, orfs)
+
+		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + db.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain1) + " order by orth_orf_id"
+		a = db.getAllResultsFromDbQuery(query)
+		x1 = np.array(a)
+
+		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + db.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain2) + " order by orth_orf_id"
+		a = db.getAllResultsFromDbQuery(query)
+		x2 = np.array(a)
+
+		return np.hstack((x1, x2))
+
+
 	##################################
 	## DATABASE AUXILIARY FUNCTIONS ##
 	##################################
@@ -164,6 +196,12 @@ class SpringDb:
 		cursor.execute(query)
 		return cursor.fetchone()
 
+	def getAllResultsFromDbQuery(self, query):
+		"""make a query and returnall results"""
+		cursor = self.getCursor()
+		cursor.execute(query)
+		return cursor.fetchall()
+
 	def getCursor(self):
 		"""get the cursor to the data base. If connection is lost then reconnect"""
 		if (self.connection.closed == 1):
@@ -183,7 +221,7 @@ class SpringDb:
 if __name__ == "__main__":
 	"""some example code"""	
 	strain    = "pa_UCBPP_PA14"
-	gene      = "rhlA"
+	gene      = "fleN"
 	db        = SpringDb()
 	strainId  = db.getGenomeIdOfStrain(strain)
 	locusName = db.getLocusNameOfGeneInStrain(gene, strainId)
