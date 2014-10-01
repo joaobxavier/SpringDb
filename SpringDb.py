@@ -68,6 +68,7 @@ class SpringDb:
  		#SeqIO.write(sequenceArray, gene + ".faa", "fasta")
 		return sequenceArray
 
+
 	
 	def getSeqrecordOfORFInStrain(self, orfId, strain):
 		"""return a SeqReord for the sequence with orfId in a strain (genome_id)"""
@@ -130,29 +131,32 @@ class SpringDb:
 		coreGenomeOrfs = uOrfs[nGenomesWithOrfI == nGenomes]
 		return coreGenomeOrfs
 
+	##########################
 	## PAIRWISE COMPARISONS ##
+	##########################
+
 	def getMatrixOfOrfsInCommonAndGenomicCoordinates(self, strain1, strain2):
 
 		# get orfs in first strain
 		query = "select orth_orf_id from orf where genome_id=" + str(strain1)
-		a = db.getAllResultsFromDbQuery(query)
+		a = self.getAllResultsFromDbQuery(query)
 		orfs1 = np.array(a)
 
 		# get orfs in second strain
 		query = "select orth_orf_id from orf where genome_id=" + str(strain2)
-		a = db.getAllResultsFromDbQuery(query)
+		a = self.getAllResultsFromDbQuery(query)
 		orfs2 = np.array(a)
 
 		# find orfs in common
 		orfs = np.intersect1d(orfs1, orfs2)
 		orfs = filter(lambda x: x != None, orfs)
 
-		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + db.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain1) + " order by orth_orf_id"
-		a = db.getAllResultsFromDbQuery(query)
+		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + self.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain1) + " order by orth_orf_id"
+		a = self.getAllResultsFromDbQuery(query)
 		x1 = np.array(a)
 
-		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + db.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain2) + " order by orth_orf_id"
-		a = db.getAllResultsFromDbQuery(query)
+		query = "select orth_orf_id, start, stop, strand from orf where orth_orf_id IN" + self.convertNumPyArrayToSqlArray(orfs) + " and genome_id=" + str(strain2) + " order by orth_orf_id"
+		a = self.getAllResultsFromDbQuery(query)
 		x2 = np.array(a)
 
 		return np.hstack((x1, x2))
